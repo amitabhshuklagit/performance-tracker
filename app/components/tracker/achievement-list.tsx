@@ -4,7 +4,6 @@ import {
   type Achievement,
   CATEGORY_LABELS,
   ROLE_LABELS,
-  CONFIDENCE_LABELS,
   deleteAchievement,
   groupByQuarter,
   calculateStrength,
@@ -14,9 +13,10 @@ interface AchievementListProps {
   achievements: Achievement[]
   onUpdate: () => void
   onEdit?: (achievement: Achievement) => void
+  onDelete?: (id: string) => void
 }
 
-export function AchievementList({ achievements, onUpdate, onEdit }: AchievementListProps) {
+export function AchievementList({ achievements, onUpdate, onEdit, onDelete }: AchievementListProps) {
   if (achievements.length === 0) {
     return (
       <div className="text-center py-12 text-neutral-500 dark:text-neutral-400">
@@ -32,8 +32,12 @@ export function AchievementList({ achievements, onUpdate, onEdit }: AchievementL
 
   function handleDelete(id: string) {
     if (window.confirm('Delete this achievement?')) {
-      deleteAchievement(id)
-      onUpdate()
+      if (onDelete) {
+        onDelete(id)
+      } else {
+        deleteAchievement(id)
+        onUpdate()
+      }
     }
   }
 
