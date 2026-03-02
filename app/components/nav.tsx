@@ -11,7 +11,10 @@ const navItems = {
     name: 'reviews',
   },
   '/interview': {
-    name: 'interview prep',
+    name: 'interviews',
+  },
+  '/resume': {
+    name: 'resume',
   },
 }
 

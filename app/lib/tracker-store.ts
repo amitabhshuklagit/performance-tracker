@@ -34,6 +34,8 @@ export type Category =
   | 'initiative'
   | 'other'
 
+export type WinType = 'technical' | 'leadership' | 'mentoring' | 'process' | 'business' | 'learning' | 'general'
+
 export interface Achievement {
   id: string
   date: string // ISO date string
@@ -45,6 +47,12 @@ export interface Achievement {
   metrics: string
   tags: string[]
   quarter: string // e.g. "Q1 2025"
+  // New flexible fields
+  notes: string // free-form notes
+  winType: WinType // what kind of win this is
+  visibility: 'team' | 'org' | 'company' | 'external' // who saw/benefited
+  effort: 'small' | 'medium' | 'large' | '' // rough effort level
+  customFields: Record<string, string> // user-defined key-value pairs
 }
 
 export interface TrackerProfile {
@@ -52,6 +60,157 @@ export interface TrackerProfile {
   role: Role
   team: string
   company: string
+}
+
+export const WIN_TYPE_LABELS: Record<WinType, string> = {
+  technical: 'Technical Achievement',
+  leadership: 'Leadership / Ownership',
+  mentoring: 'Mentoring / Coaching',
+  process: 'Process / Workflow',
+  business: 'Business Impact',
+  learning: 'Learning / Growth',
+  general: 'General Win',
+}
+
+export const VISIBILITY_LABELS: Record<string, string> = {
+  team: 'Team-level',
+  org: 'Org-level',
+  company: 'Company-wide',
+  external: 'External / Industry',
+}
+
+export const EFFORT_LABELS: Record<string, string> = {
+  small: 'Quick win (hours/days)',
+  medium: 'Medium effort (weeks)',
+  large: 'Major effort (months)',
+}
+
+// Achievement templates for quick entry
+export interface AchievementTemplate {
+  name: string
+  winType: WinType
+  category: Category
+  placeholders: {
+    title: string
+    description: string
+    impact: string
+    metrics: string
+    tags: string
+  }
+}
+
+export const ACHIEVEMENT_TEMPLATES: AchievementTemplate[] = [
+  {
+    name: 'Shipped a Feature',
+    winType: 'technical',
+    category: 'feature',
+    placeholders: {
+      title: 'e.g. Built real-time notification system',
+      description: 'What did you build? What was the technical approach?',
+      impact: 'e.g. Improved user engagement by enabling instant updates',
+      metrics: 'e.g. 30% increase in DAU, 2s average delivery time',
+      tags: 'React, WebSocket, Redis',
+    },
+  },
+  {
+    name: 'Fixed a Critical Bug',
+    winType: 'technical',
+    category: 'bugfix',
+    placeholders: {
+      title: 'e.g. Resolved production memory leak',
+      description: 'What was the issue? How did you diagnose and fix it?',
+      impact: 'e.g. Prevented recurring outages affecting 10k users',
+      metrics: 'e.g. Reduced crash rate from 5% to 0.1%',
+      tags: 'debugging, Node.js, monitoring',
+    },
+  },
+  {
+    name: 'Led a Project',
+    winType: 'leadership',
+    category: 'leadership',
+    placeholders: {
+      title: 'e.g. Led migration to microservices',
+      description: 'What did you lead? How did you coordinate the team?',
+      impact: 'e.g. Successfully migrated 3 services with zero downtime',
+      metrics: 'e.g. 5 engineers, 3 months, on time and budget',
+      tags: 'project management, architecture, team lead',
+    },
+  },
+  {
+    name: 'Mentored Someone',
+    winType: 'mentoring',
+    category: 'mentoring',
+    placeholders: {
+      title: 'e.g. Onboarded and mentored new hire',
+      description: 'Who did you help? What did you teach or support?',
+      impact: 'e.g. New hire was productive within 2 weeks',
+      metrics: '',
+      tags: 'mentoring, onboarding, knowledge transfer',
+    },
+  },
+  {
+    name: 'Improved a Process',
+    winType: 'process',
+    category: 'process',
+    placeholders: {
+      title: 'e.g. Automated deployment pipeline',
+      description: 'What process did you improve? What was wrong before?',
+      impact: 'e.g. Reduced deployment time from 2 hours to 10 minutes',
+      metrics: 'e.g. 90% time saved per release, 3x more releases per week',
+      tags: 'CI/CD, automation, DevOps',
+    },
+  },
+  {
+    name: 'Learned Something New',
+    winType: 'learning',
+    category: 'learning',
+    placeholders: {
+      title: 'e.g. Completed AWS Solutions Architect certification',
+      description: 'What did you learn? How are you applying it?',
+      impact: 'e.g. Now leading cloud architecture decisions for the team',
+      metrics: '',
+      tags: 'AWS, certification, cloud',
+    },
+  },
+  {
+    name: 'Business / Product Impact',
+    winType: 'business',
+    category: 'initiative',
+    placeholders: {
+      title: 'e.g. Proposed and shipped pricing page A/B test',
+      description: 'What was the business context? What did you do?',
+      impact: 'e.g. Increased conversion rate leading to more signups',
+      metrics: 'e.g. 15% uplift in conversion, $50k ARR impact',
+      tags: 'product, growth, A/B testing',
+    },
+  },
+  {
+    name: 'Quick / Qualitative Win',
+    winType: 'general',
+    category: 'other',
+    placeholders: {
+      title: 'What happened?',
+      description: 'Brief context (optional)',
+      impact: '',
+      metrics: '',
+      tags: '',
+    },
+  },
+]
+
+// Smart category suggestion based on keywords
+export function suggestCategory(text: string): Category {
+  const lower = text.toLowerCase()
+  if (/\b(ship|build|feature|implement|develop|launch|release)\b/.test(lower)) return 'feature'
+  if (/\b(fix|bug|debug|resolve|patch|hotfix|crash)\b/.test(lower)) return 'bugfix'
+  if (/\b(optim|perf|speed|fast|latency|cache|scale)\b/.test(lower)) return 'optimization'
+  if (/\b(lead|own|drove|manage|coordin|direct)\b/.test(lower)) return 'leadership'
+  if (/\b(process|automat|pipeline|workflow|ci\/cd|devops)\b/.test(lower)) return 'process'
+  if (/\b(mentor|teach|onboard|coach|train|pair)\b/.test(lower)) return 'mentoring'
+  if (/\b(learn|cert|course|study|skill|grow)\b/.test(lower)) return 'learning'
+  if (/\b(collab|cross.?team|partner|align|stakeholder)\b/.test(lower)) return 'collaboration'
+  if (/\b(initiat|innovat|propos|experiment|prototype|hack)\b/.test(lower)) return 'initiative'
+  return 'other'
 }
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -416,6 +575,201 @@ export function generateInterviewQuestions(achievements: Achievement[], role: Ro
   }
 
   return Array.from(new Set(questions))
+}
+
+// ---- Resume bullet generator ----
+
+export function generateResumeBullets(achievements: Achievement[], profile: TrackerProfile | null): string {
+  const role = profile?.role ? ROLE_LABELS[profile.role] : 'IT Professional'
+  let output = `# Resume Bullets\n`
+  output += `**Role:** ${role}\n\n`
+
+  for (const a of achievements) {
+    // Action verb + what + result format
+    let bullet = `- ${a.title}`
+    if (a.metrics) {
+      bullet += ` (${a.metrics})`
+    } else if (a.impact) {
+      bullet += ` - ${a.impact}`
+    }
+    output += bullet + '\n'
+  }
+
+  output += `\n## Detailed Bullets\n\n`
+  for (const a of achievements) {
+    output += `**${a.title}**\n`
+    if (a.description) output += `${a.description}\n`
+    if (a.impact) output += `Impact: ${a.impact}\n`
+    if (a.metrics) output += `Metrics: ${a.metrics}\n`
+    if (a.tags.length > 0) output += `Technologies: ${a.tags.join(', ')}\n`
+    output += `\n`
+  }
+
+  const allTags = Array.from(new Set(achievements.flatMap((a) => a.tags).filter(Boolean)))
+  if (allTags.length > 0) {
+    output += `## Skills Summary\n\n`
+    output += allTags.join(' | ') + '\n'
+  }
+
+  return output
+}
+
+// ---- Promotion case builder ----
+
+export function generatePromotionCase(
+  achievements: Achievement[],
+  profile: TrackerProfile | null
+): string {
+  const name = profile?.name || 'Team Member'
+  const role = profile?.role ? ROLE_LABELS[profile.role] : 'IT Professional'
+
+  const byCat: Record<string, Achievement[]> = {}
+  for (const a of achievements) {
+    const cat = CATEGORY_LABELS[a.category] || a.category
+    if (!byCat[cat]) byCat[cat] = []
+    byCat[cat].push(a)
+  }
+
+  const byVisibility: Record<string, Achievement[]> = {}
+  for (const a of achievements) {
+    const v = a.visibility || 'team'
+    if (!byVisibility[v]) byVisibility[v] = []
+    byVisibility[v].push(a)
+  }
+
+  let doc = `# Promotion Case - ${name}\n`
+  doc += `**Current Role:** ${role}\n\n`
+
+  doc += `## Executive Summary\n\n`
+  doc += `${name} has made ${achievements.length} documented contributions demonstrating readiness for the next level. `
+  doc += `Work spans ${Object.keys(byCat).length} areas with impact at `
+  const visLevels = Object.keys(byVisibility).map((v) => VISIBILITY_LABELS[v] || v)
+  doc += `${visLevels.join(', ')} visibility.\n\n`
+
+  doc += `## Evidence of Next-Level Performance\n\n`
+
+  // Leadership evidence
+  const leadershipItems = achievements.filter(
+    (a) => a.winType === 'leadership' || a.category === 'leadership' || a.category === 'mentoring'
+  )
+  if (leadershipItems.length > 0) {
+    doc += `### Leadership & Influence\n\n`
+    for (const item of leadershipItems) {
+      doc += `- **${item.title}**: ${item.description || ''}\n`
+      if (item.impact) doc += `  - Impact: ${item.impact}\n`
+    }
+    doc += `\n`
+  }
+
+  // Technical depth
+  const techItems = achievements.filter(
+    (a) => a.winType === 'technical' || a.category === 'feature' || a.category === 'optimization'
+  )
+  if (techItems.length > 0) {
+    doc += `### Technical Excellence\n\n`
+    for (const item of techItems) {
+      doc += `- **${item.title}**: ${item.description || ''}\n`
+      if (item.metrics) doc += `  - Metrics: ${item.metrics}\n`
+    }
+    doc += `\n`
+  }
+
+  // Business impact
+  const bizItems = achievements.filter((a) => a.winType === 'business')
+  if (bizItems.length > 0) {
+    doc += `### Business Impact\n\n`
+    for (const item of bizItems) {
+      doc += `- **${item.title}**: ${item.impact || item.description || ''}\n`
+      if (item.metrics) doc += `  - Metrics: ${item.metrics}\n`
+    }
+    doc += `\n`
+  }
+
+  // Scope & visibility
+  doc += `## Scope of Impact\n\n`
+  for (const [vis, items] of Object.entries(byVisibility)) {
+    doc += `- **${VISIBILITY_LABELS[vis] || vis}:** ${items.length} contributions\n`
+  }
+
+  // Effort distribution
+  const byEffort: Record<string, number> = {}
+  for (const a of achievements) {
+    const e = a.effort || 'unknown'
+    byEffort[e] = (byEffort[e] || 0) + 1
+  }
+  const largeEffort = byEffort['large'] || 0
+  if (largeEffort > 0) {
+    doc += `\n- **${largeEffort} major initiative(s)** spanning months of effort\n`
+  }
+
+  doc += `\n## Key Metrics\n\n`
+  const metricsItems = achievements.filter((a) => a.metrics)
+  if (metricsItems.length > 0) {
+    for (const a of metricsItems) {
+      doc += `- ${a.title}: ${a.metrics}\n`
+    }
+  } else {
+    doc += `_Add metrics to achievements to strengthen this section._\n`
+  }
+
+  doc += `\n## Skills & Growth Areas\n\n`
+  const allTags = Array.from(new Set(achievements.flatMap((a) => a.tags).filter(Boolean)))
+  if (allTags.length > 0) {
+    doc += allTags.map((t) => `\`${t}\``).join(', ') + '\n'
+  }
+
+  return doc
+}
+
+// ---- Search / filter helpers ----
+
+export function filterAchievements(
+  achievements: Achievement[],
+  filters: {
+    search?: string
+    category?: Category | ''
+    winType?: WinType | ''
+    quarter?: string
+    tags?: string[]
+  }
+): Achievement[] {
+  let results = achievements
+
+  if (filters.search) {
+    const q = filters.search.toLowerCase()
+    results = results.filter(
+      (a) =>
+        a.title.toLowerCase().includes(q) ||
+        a.description.toLowerCase().includes(q) ||
+        a.impact.toLowerCase().includes(q) ||
+        (a.notes || '').toLowerCase().includes(q) ||
+        a.tags.some((t) => t.toLowerCase().includes(q))
+    )
+  }
+
+  if (filters.category) {
+    results = results.filter((a) => a.category === filters.category)
+  }
+
+  if (filters.winType) {
+    results = results.filter((a) => a.winType === filters.winType)
+  }
+
+  if (filters.quarter) {
+    results = results.filter((a) => a.quarter === filters.quarter)
+  }
+
+  if (filters.tags && filters.tags.length > 0) {
+    results = results.filter((a) =>
+      filters.tags!.some((t) => a.tags.includes(t))
+    )
+  }
+
+  return results
+}
+
+export function getAllTags(achievements: Achievement[]): string[] {
+  return Array.from(new Set(achievements.flatMap((a) => a.tags).filter(Boolean))).sort()
 }
 
 export function exportToMarkdown(content: string, filename: string): void {

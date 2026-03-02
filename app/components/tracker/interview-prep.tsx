@@ -1,18 +1,21 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from 'app/lib/auth-context'
 import {
   type Achievement,
   type Role,
-  getAchievements,
-  getProfile,
   CATEGORY_LABELS,
   generateInterviewAnswer,
   generateInterviewQuestions,
   exportToMarkdown,
 } from 'app/lib/tracker-store'
+import { getCloudAchievements, getCloudProfile } from 'app/lib/cloud-store'
 
 export function InterviewPrep() {
+  const { user } = useAuth()
+  const userId = user?.uid || ''
+
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [loading, setLoading] = useState(true)
   const [role, setRole] = useState<Role>('dev')
@@ -22,14 +25,18 @@ export function InterviewPrep() {
 
   useEffect(() => {
     async function load() {
+      if (!userId) return
       setLoading(true)
-      const [data, profile] = await Promise.all([getAchievements(), getProfile()])
+      const [data, profile] = await Promise.all([
+        getCloudAchievements(userId),
+        getCloudProfile(userId),
+      ])
       setAchievements(data)
       if (profile?.role) setRole(profile.role)
       setLoading(false)
     }
     load()
-  }, [])
+  }, [userId])
 
   const questions = generateInterviewQuestions(achievements, role)
 

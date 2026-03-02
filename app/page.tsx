@@ -2,19 +2,39 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useAuth } from 'app/lib/auth-context'
+import { AuthGuard } from 'app/components/auth-guard'
 import {
   type Achievement,
   type Role,
-  getAchievements,
-  getProfile,
-  saveProfile,
   type TrackerProfile,
   ROLE_LABELS,
+  groupByQuarter,
+  getAllTags,
 } from 'app/lib/tracker-store'
+import {
+  getCloudAchievements,
+  getCloudProfile,
+  saveCloudProfile,
+  saveCloudAchievement,
+  deleteCloudAchievement,
+  migrateLocalToCloud,
+} from 'app/lib/cloud-store'
 import { AchievementForm } from 'app/components/tracker/achievement-form'
 import { AchievementList } from 'app/components/tracker/achievement-list'
 
 export default function TrackerPage() {
+  return (
+    <AuthGuard>
+      <TrackerContent />
+    </AuthGuard>
+  )
+}
+
+function TrackerContent() {
+  const { user } = useAuth()
+  const userId = user!.uid
+
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<TrackerProfile | null>(null)
@@ -29,27 +49,29 @@ export default function TrackerPage() {
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    const data = await getAchievements()
+    const data = await getCloudAchievements(userId)
     setAchievements(data)
     setLoading(false)
-  }, [])
+  }, [userId])
 
   useEffect(() => {
     async function init() {
-      const [, p] = await Promise.all([refresh(), getProfile()])
+      // Migrate any local data to cloud on first load
+      await migrateLocalToCloud(userId)
+      const [, p] = await Promise.all([refresh(), getCloudProfile(userId)])
       if (p) {
         setProfile(p)
         setProfileForm(p)
       }
     }
     init()
-  }, [refresh])
+  }, [refresh, userId])
 
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault()
     setSavingProfile(true)
     try {
-      await saveProfile(profileForm)
+      await saveCloudProfile(userId, profileForm)
       setProfile(profileForm)
       setShowProfile(false)
     } catch (error) {
@@ -172,24 +194,30 @@ export default function TrackerPage() {
       )}
 
       {/* Quick links */}
-      <div className="flex gap-3 mb-6">
+      <div className="grid grid-cols-3 gap-3 mb-6">
         <Link
           href="/review"
-          className="flex-1 text-center py-3 px-4 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 dark:hover:border-blue-400 transition-colors text-sm font-medium"
+          className="text-center py-3 px-2 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 dark:hover:border-blue-400 transition-colors text-sm font-medium"
         >
-          Generate Reviews
+          Reviews
         </Link>
         <Link
           href="/interview"
-          className="flex-1 text-center py-3 px-4 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 dark:hover:border-blue-400 transition-colors text-sm font-medium"
+          className="text-center py-3 px-2 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 dark:hover:border-blue-400 transition-colors text-sm font-medium"
         >
           Interview Prep
+        </Link>
+        <Link
+          href="/resume"
+          className="text-center py-3 px-2 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-green-500 dark:hover:border-green-400 transition-colors text-sm font-medium"
+        >
+          Resume
         </Link>
       </div>
 
       {/* Add Achievement */}
       <div className="mb-6">
-        <AchievementForm onAdd={refresh} defaultRole={profile?.role} />
+        <AchievementForm onAdd={refresh} defaultRole={profile?.role} userId={userId} existingTags={getAllTags(achievements)} />
       </div>
 
       {/* Achievement List */}
@@ -198,7 +226,7 @@ export default function TrackerPage() {
           Loading achievements...
         </div>
       ) : (
-        <AchievementList achievements={achievements} onUpdate={refresh} />
+        <AchievementList achievements={achievements} onUpdate={refresh} userId={userId} />
       )}
     </section>
   )
