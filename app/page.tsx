@@ -2,7 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { type Achievement, type Role, getAchievements, getProfile, saveProfile, type TrackerProfile, ROLE_LABELS } from 'app/lib/tracker-store'
+import {
+  type Achievement,
+  type Role,
+  getAchievements,
+  getProfile,
+  saveProfile,
+  type TrackerProfile,
+  ROLE_LABELS,
+  calculateStrength,
+} from 'app/lib/tracker-store'
 import { AchievementForm } from 'app/components/tracker/achievement-form'
 import { AchievementList } from 'app/components/tracker/achievement-list'
 
@@ -10,6 +19,7 @@ export default function TrackerPage() {
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [profile, setProfile] = useState<TrackerProfile | null>(null)
   const [showProfile, setShowProfile] = useState(false)
+  const [editingAchievement, setEditingAchievement] = useState<Achievement | null>(null)
   const [profileForm, setProfileForm] = useState<TrackerProfile>({
     name: '',
     role: 'dev',
@@ -37,9 +47,24 @@ export default function TrackerPage() {
     setShowProfile(false)
   }
 
+  function handleEdit(achievement: Achievement) {
+    setEditingAchievement(achievement)
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function handleFormDone() {
+    setEditingAchievement(null)
+    refresh()
+  }
+
   const totalCount = achievements.length
   const quarters = Array.from(new Set(achievements.map((a) => a.quarter)))
   const categories = Array.from(new Set(achievements.map((a) => a.category)))
+
+  // Stats
+  const strongCount = achievements.filter((a) => calculateStrength(a).score >= 60).length
+  const draftCount = achievements.filter((a) => calculateStrength(a).score < 40).length
 
   return (
     <section>
@@ -125,24 +150,30 @@ export default function TrackerPage() {
 
       {/* Stats */}
       {totalCount > 0 && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <div className="text-center p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {totalCount}
             </div>
-            <div className="text-xs text-neutral-500">Achievements</div>
+            <div className="text-xs text-neutral-500">Total</div>
           </div>
           <div className="text-center p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
             <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+              {strongCount}
+            </div>
+            <div className="text-xs text-neutral-500">Review-ready</div>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
               {quarters.length}
             </div>
             <div className="text-xs text-neutral-500">Quarters</div>
           </div>
           <div className="text-center p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
-            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-              {categories.length}
+            <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+              {draftCount}
             </div>
-            <div className="text-xs text-neutral-500">Categories</div>
+            <div className="text-xs text-neutral-500">Need detail</div>
           </div>
         </div>
       )}
@@ -163,13 +194,22 @@ export default function TrackerPage() {
         </Link>
       </div>
 
-      {/* Add Achievement */}
+      {/* Add / Edit Achievement */}
       <div className="mb-6">
-        <AchievementForm onAdd={refresh} defaultRole={profile?.role} />
+        <AchievementForm
+          onAdd={handleFormDone}
+          defaultRole={profile?.role}
+          editingAchievement={editingAchievement}
+          onCancelEdit={() => setEditingAchievement(null)}
+        />
       </div>
 
       {/* Achievement List */}
-      <AchievementList achievements={achievements} onUpdate={refresh} />
+      <AchievementList
+        achievements={achievements}
+        onUpdate={refresh}
+        onEdit={handleEdit}
+      />
     </section>
   )
 }
