@@ -1,5 +1,6 @@
-import { initializeApp, getApps } from 'firebase/app'
-import { getFirestore } from 'firebase/firestore'
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
+import { getFirestore, type Firestore } from 'firebase/firestore'
+import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: 'AIzaSyAzSDnpICDE7pDQBLNyWiS8W1j5UMCnqso',
@@ -11,6 +12,35 @@ const firebaseConfig = {
   measurementId: 'G-RWX71N6NLE',
 }
 
-// Initialize Firebase only once
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
-export const db = getFirestore(app)
+let app: FirebaseApp | null = null
+let db: Firestore | null = null
+let auth: Auth | null = null
+
+export const googleProvider = new GoogleAuthProvider()
+
+export function isFirebaseConfigured(): boolean {
+  return Boolean(firebaseConfig.apiKey && firebaseConfig.projectId)
+}
+
+function getApp(): FirebaseApp {
+  if (!app) {
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+  }
+  return app
+}
+
+export function getFirebaseDb(): Firestore | null {
+  if (!isFirebaseConfigured()) return null
+  if (!db) {
+    db = getFirestore(getApp())
+  }
+  return db
+}
+
+export function getFirebaseAuth(): Auth | null {
+  if (!isFirebaseConfigured()) return null
+  if (!auth) {
+    auth = getAuth(getApp())
+  }
+  return auth
+}

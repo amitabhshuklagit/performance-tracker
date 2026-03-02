@@ -12,7 +12,13 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore'
-import { db } from './firebase'
+import { getFirebaseDb } from './firebase'
+
+function getDb() {
+  const db = getFirebaseDb()
+  if (!db) throw new Error('Firestore not initialized')
+  return db
+}
 
 export type Role = 'dev' | 'qa' | 'pm' | 'designer' | 'devops' | 'data' | 'other'
 
@@ -79,7 +85,8 @@ const SETTINGS_COLLECTION = 'settings'
 
 export async function getAchievements(): Promise<Achievement[]> {
   try {
-    const q = query(collection(db, ACHIEVEMENTS_COLLECTION), orderBy('date', 'desc'))
+    const database = getDb()
+    const q = query(collection(database, ACHIEVEMENTS_COLLECTION), orderBy('date', 'desc'))
     const snapshot = await getDocs(q)
     return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Achievement))
   } catch (error) {
@@ -91,11 +98,12 @@ export async function getAchievements(): Promise<Achievement[]> {
 export async function addAchievement(
   item: Omit<Achievement, 'id' | 'quarter'>
 ): Promise<Achievement> {
+  const database = getDb()
   const date = new Date(item.date)
   const q = Math.ceil((date.getMonth() + 1) / 3)
   const quarter = `Q${q} ${date.getFullYear()}`
 
-  const docRef = await addDoc(collection(db, ACHIEVEMENTS_COLLECTION), {
+  const docRef = await addDoc(collection(database, ACHIEVEMENTS_COLLECTION), {
     ...item,
     quarter,
   })
@@ -104,17 +112,20 @@ export async function addAchievement(
 }
 
 export async function deleteAchievement(id: string): Promise<void> {
-  await deleteDoc(doc(db, ACHIEVEMENTS_COLLECTION, id))
+  const database = getDb()
+  await deleteDoc(doc(database, ACHIEVEMENTS_COLLECTION, id))
 }
 
 export async function updateAchievement(updated: Achievement): Promise<void> {
+  const database = getDb()
   const { id, ...data } = updated
-  await updateDoc(doc(db, ACHIEVEMENTS_COLLECTION, id), data)
+  await updateDoc(doc(database, ACHIEVEMENTS_COLLECTION, id), data)
 }
 
 export async function getProfile(): Promise<TrackerProfile | null> {
   try {
-    const docSnap = await getDoc(doc(db, SETTINGS_COLLECTION, PROFILE_DOC))
+    const database = getDb()
+    const docSnap = await getDoc(doc(database, SETTINGS_COLLECTION, PROFILE_DOC))
     if (docSnap.exists()) {
       return docSnap.data() as TrackerProfile
     }
@@ -126,7 +137,8 @@ export async function getProfile(): Promise<TrackerProfile | null> {
 }
 
 export async function saveProfile(profile: TrackerProfile): Promise<void> {
-  await setDoc(doc(db, SETTINGS_COLLECTION, PROFILE_DOC), profile)
+  const database = getDb()
+  await setDoc(doc(database, SETTINGS_COLLECTION, PROFILE_DOC), profile)
 }
 
 // ---- Grouping helpers ----
