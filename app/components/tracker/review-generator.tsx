@@ -11,28 +11,23 @@ import {
   generateYearlyReview,
   exportToMarkdown,
 } from 'app/lib/tracker-store'
-import { getCloudAchievements, getCloudProfile } from 'app/lib/cloud-store'
-import { useAuth } from 'app/lib/auth-context'
 
 export function ReviewGenerator() {
-  const { user, isConfigured } = useAuth()
   const [achievements, setAchievements] = useState<Achievement[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
   const [reviewType, setReviewType] = useState<'quarterly' | 'yearly'>('quarterly')
   const [generatedReview, setGeneratedReview] = useState<string>('')
 
-  const isCloud = isConfigured && user !== null
-
   useEffect(() => {
     async function load() {
-      if (isCloud && user) {
-        setAchievements(await getCloudAchievements(user.uid))
-      } else {
-        setAchievements(getAchievements())
-      }
+      setLoading(true)
+      const data = await getAchievements()
+      setAchievements(data)
+      setLoading(false)
     }
     load()
-  }, [isCloud, user])
+  }, [])
 
   const quarters = Object.keys(groupByQuarter(achievements))
   const years = Object.keys(groupByYear(achievements))
@@ -40,12 +35,7 @@ export function ReviewGenerator() {
 
   async function handleGenerate() {
     if (!selectedPeriod) return
-    let profile
-    if (isCloud && user) {
-      profile = await getCloudProfile(user.uid)
-    } else {
-      profile = getProfile()
-    }
+    const profile = await getProfile()
 
     if (reviewType === 'quarterly') {
       const grouped = groupByQuarter(achievements)
@@ -67,6 +57,14 @@ export function ReviewGenerator() {
   function handleCopy() {
     if (!generatedReview) return
     navigator.clipboard.writeText(generatedReview)
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-12 text-neutral-500 dark:text-neutral-400">
+        Loading achievements...
+      </div>
+    )
   }
 
   if (achievements.length === 0) {

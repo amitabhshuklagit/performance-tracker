@@ -11,33 +11,25 @@ import {
   generateInterviewQuestions,
   exportToMarkdown,
 } from 'app/lib/tracker-store'
-import { getCloudAchievements, getCloudProfile } from 'app/lib/cloud-store'
-import { useAuth } from 'app/lib/auth-context'
 
 export function InterviewPrep() {
-  const { user, isConfigured } = useAuth()
   const [achievements, setAchievements] = useState<Achievement[]>([])
+  const [loading, setLoading] = useState(true)
+  const [role, setRole] = useState<Role>('dev')
   const [selectedId, setSelectedId] = useState<string>('')
   const [generatedAnswer, setGeneratedAnswer] = useState<string>('')
   const [showQuestions, setShowQuestions] = useState(false)
-  const [role, setRole] = useState<Role>('dev')
-
-  const isCloud = isConfigured && user !== null
 
   useEffect(() => {
     async function load() {
-      if (isCloud && user) {
-        setAchievements(await getCloudAchievements(user.uid))
-        const profile = await getCloudProfile(user.uid)
-        if (profile?.role) setRole(profile.role)
-      } else {
-        setAchievements(getAchievements())
-        const profile = getProfile()
-        if (profile?.role) setRole(profile.role)
-      }
+      setLoading(true)
+      const [data, profile] = await Promise.all([getAchievements(), getProfile()])
+      setAchievements(data)
+      if (profile?.role) setRole(profile.role)
+      setLoading(false)
     }
     load()
-  }, [isCloud, user])
+  }, [])
 
   const questions = generateInterviewQuestions(achievements, role)
 
@@ -63,6 +55,14 @@ export function InterviewPrep() {
   function handleExport() {
     if (!generatedAnswer) return
     exportToMarkdown(generatedAnswer, 'interview-prep.md')
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-12 text-neutral-500 dark:text-neutral-400">
+        Loading achievements...
+      </div>
+    )
   }
 
   if (achievements.length === 0) {
