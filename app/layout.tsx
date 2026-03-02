@@ -11,15 +11,15 @@ import { baseUrl } from './sitemap'
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: 'Career Portfolio & Tracker',
-    template: '%s | Career Portfolio & Tracker',
+    default: 'Career Tracker',
+    template: '%s | Career Tracker',
   },
   description: 'Track achievements, generate performance reviews, and prep for interviews.',
   openGraph: {
-    title: 'My Portfolio',
-    description: 'This is my portfolio.',
+    title: 'Career Tracker',
+    description: 'Track achievements, generate performance reviews, and prep for interviews.',
     url: baseUrl,
-    siteName: 'My Portfolio',
+    siteName: 'Career Tracker',
     locale: 'en_US',
     type: 'website',
   },

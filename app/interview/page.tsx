@@ -8,7 +8,7 @@ export default function InterviewPage() {
     <section>
       <div className="mb-8">
         <Link
-          href="/tracker"
+          href="/"
           className="text-sm text-blue-600 dark:text-blue-400 hover:underline mb-2 inline-block"
         >
           &larr; Back to Tracker
