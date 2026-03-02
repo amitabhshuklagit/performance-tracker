@@ -8,9 +8,12 @@ import {
   groupByYear,
   generateQuarterlyReview,
   generateYearlyReview,
+  generatePromotionCase,
   exportToMarkdown,
 } from 'app/lib/tracker-store'
 import { getCloudAchievements, getCloudProfile } from 'app/lib/cloud-store'
+
+type ReviewMode = 'quarterly' | 'yearly' | 'promotion'
 
 export function ReviewGenerator() {
   const { user } = useAuth()
@@ -19,7 +22,7 @@ export function ReviewGenerator() {
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
-  const [reviewType, setReviewType] = useState<'quarterly' | 'yearly'>('quarterly')
+  const [reviewType, setReviewType] = useState<ReviewMode>('quarterly')
   const [generatedReview, setGeneratedReview] = useState<string>('')
 
   useEffect(() => {
@@ -35,10 +38,16 @@ export function ReviewGenerator() {
 
   const quarters = Object.keys(groupByQuarter(achievements))
   const years = Object.keys(groupByYear(achievements))
-  const periods = reviewType === 'quarterly' ? quarters : years
+  const periods = reviewType === 'quarterly' ? quarters : reviewType === 'yearly' ? years : []
 
   async function handleGenerate() {
-    if (!selectedPeriod || !userId) return
+    if (reviewType === 'promotion') {
+      const profile = await getCloudProfile(userId)
+      setGeneratedReview(generatePromotionCase(achievements, profile))
+      return
+    }
+
+    if (!selectedPeriod) return
     const profile = await getCloudProfile(userId)
 
     if (reviewType === 'quarterly') {
@@ -54,7 +63,9 @@ export function ReviewGenerator() {
 
   function handleExport() {
     if (!generatedReview) return
-    const filename = `${reviewType}-review-${selectedPeriod.replace(/\s/g, '-').toLowerCase()}.md`
+    const filename = reviewType === 'promotion'
+      ? 'promotion-case.md'
+      : `${reviewType}-review-${selectedPeriod.replace(/\s/g, '-').toLowerCase()}.md`
     exportToMarkdown(generatedReview, filename)
   }
 
@@ -84,8 +95,9 @@ export function ReviewGenerator() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-4">
+        {/* Review type selector */}
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => {
               setReviewType('quarterly')
@@ -98,7 +110,7 @@ export function ReviewGenerator() {
                 : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
             }`}
           >
-            Quarterly Review
+            Quarterly
           </button>
           <button
             onClick={() => {
@@ -112,36 +124,69 @@ export function ReviewGenerator() {
                 : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
             }`}
           >
-            Yearly Review
+            Yearly
+          </button>
+          <button
+            onClick={() => {
+              setReviewType('promotion')
+              setSelectedPeriod('')
+              setGeneratedReview('')
+            }}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              reviewType === 'promotion'
+                ? 'bg-green-600 text-white'
+                : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+            }`}
+          >
+            Promotion Case
           </button>
         </div>
 
-        <div className="flex gap-2 flex-1">
-          <select
-            value={selectedPeriod}
-            onChange={(e) => {
-              setSelectedPeriod(e.target.value)
-              setGeneratedReview('')
-            }}
-            className="flex-1 px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm"
-          >
-            <option value="">
-              Select {reviewType === 'quarterly' ? 'quarter' : 'year'}...
-            </option>
-            {periods.map((p) => (
-              <option key={p} value={p}>
-                {p}
+        {/* Period selector (not for promotion) */}
+        {reviewType !== 'promotion' && (
+          <div className="flex gap-2">
+            <select
+              value={selectedPeriod}
+              onChange={(e) => {
+                setSelectedPeriod(e.target.value)
+                setGeneratedReview('')
+              }}
+              className="flex-1 px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm"
+            >
+              <option value="">
+                Select {reviewType === 'quarterly' ? 'quarter' : 'year'}...
               </option>
-            ))}
-          </select>
-          <button
-            onClick={handleGenerate}
-            disabled={!selectedPeriod}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Generate
-          </button>
-        </div>
+              {periods.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleGenerate}
+              disabled={!selectedPeriod}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Generate
+            </button>
+          </div>
+        )}
+
+        {/* Promotion generate button */}
+        {reviewType === 'promotion' && (
+          <div>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-3">
+              Generate a promotion case document from all your achievements. Includes
+              evidence of leadership, technical depth, business impact, and scope of influence.
+            </p>
+            <button
+              onClick={handleGenerate}
+              className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
+            >
+              Build Promotion Case ({achievements.length} achievements)
+            </button>
+          </div>
+        )}
       </div>
 
       {generatedReview && (

@@ -10,6 +10,7 @@ import {
   type TrackerProfile,
   ROLE_LABELS,
   groupByQuarter,
+  getAllTags,
 } from 'app/lib/tracker-store'
 import {
   getCloudAchievements,
@@ -193,24 +194,30 @@ function TrackerContent() {
       )}
 
       {/* Quick links */}
-      <div className="flex gap-3 mb-6">
+      <div className="grid grid-cols-3 gap-3 mb-6">
         <Link
           href="/review"
-          className="flex-1 text-center py-3 px-4 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 dark:hover:border-blue-400 transition-colors text-sm font-medium"
+          className="text-center py-3 px-2 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 dark:hover:border-blue-400 transition-colors text-sm font-medium"
         >
-          Generate Reviews
+          Reviews
         </Link>
         <Link
           href="/interview"
-          className="flex-1 text-center py-3 px-4 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 dark:hover:border-blue-400 transition-colors text-sm font-medium"
+          className="text-center py-3 px-2 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 dark:hover:border-blue-400 transition-colors text-sm font-medium"
         >
           Interview Prep
+        </Link>
+        <Link
+          href="/resume"
+          className="text-center py-3 px-2 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-green-500 dark:hover:border-green-400 transition-colors text-sm font-medium"
+        >
+          Resume
         </Link>
       </div>
 
       {/* Add Achievement */}
       <div className="mb-6">
-        <AchievementForm onAdd={refresh} defaultRole={profile?.role} userId={userId} />
+        <AchievementForm onAdd={refresh} defaultRole={profile?.role} userId={userId} existingTags={getAllTags(achievements)} />
       </div>
 
       {/* Achievement List */}
