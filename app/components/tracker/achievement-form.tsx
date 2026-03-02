@@ -17,6 +17,7 @@ import {
   suggestCategory,
   calculateStrength,
 } from 'app/lib/tracker-store'
+import { saveCloudAchievement } from 'app/lib/cloud-store'
 
 type FormMode = 'closed' | 'template-picker' | 'quick-add' | 'full-form'
 
@@ -25,6 +26,7 @@ interface AchievementFormProps {
   defaultRole?: Role
   editingAchievement?: Achievement | null
   onCancelEdit?: () => void
+  userId?: string
 }
 
 export function AchievementForm({
@@ -32,6 +34,7 @@ export function AchievementForm({
   defaultRole = 'dev',
   editingAchievement,
   onCancelEdit,
+  userId,
 }: AchievementFormProps) {
   const [mode, setMode] = useState<FormMode>(editingAchievement ? 'full-form' : 'closed')
   const [showDetails, setShowDetails] = useState(false)
@@ -140,26 +143,31 @@ export function AchievementForm({
     setMode('closed')
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim()) return
 
     const data = buildAchievementData()
 
     if (editingAchievement) {
-      updateAchievement({
-        ...editingAchievement,
-        ...data,
-      })
+      const updated = { ...editingAchievement, ...data }
+      if (userId) {
+        await saveCloudAchievement(userId, updated)
+      } else {
+        updateAchievement(updated)
+      }
     } else {
-      addAchievement(data)
+      const achievement = addAchievement(data)
+      if (userId) {
+        await saveCloudAchievement(userId, achievement)
+      }
     }
 
     resetForm()
     onAdd()
   }
 
-  function handleQuickAdd(e: React.FormEvent) {
+  async function handleQuickAdd(e: React.FormEvent) {
     e.preventDefault()
     if (!quickText.trim()) return
 
@@ -169,7 +177,7 @@ export function AchievementForm({
     const quickDesc = lines.slice(1).join('\n').trim()
     const suggestedCat = suggestCategory(quickText)
 
-    addAchievement({
+    const achievement = addAchievement({
       title: quickTitle,
       description: quickDesc,
       date: new Date().toISOString().split('T')[0],
@@ -185,6 +193,10 @@ export function AchievementForm({
       customFields: [],
       templateUsed: 'quick-add',
     })
+
+    if (userId) {
+      await saveCloudAchievement(userId, achievement)
+    }
 
     setQuickText('')
     setMode('closed')

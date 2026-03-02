@@ -8,18 +8,34 @@ import {
   getAchievements,
   getProfile,
   saveProfile,
+  addAchievement as addLocalAchievement,
+  updateAchievement as updateLocalAchievement,
+  deleteAchievement as deleteLocalAchievement,
+  saveAchievements as saveLocalAchievements,
   type TrackerProfile,
   ROLE_LABELS,
   calculateStrength,
 } from 'app/lib/tracker-store'
+import {
+  getCloudAchievements,
+  saveCloudAchievement,
+  deleteCloudAchievement,
+  getCloudProfile,
+  saveCloudProfile,
+  migrateLocalToCloud,
+} from 'app/lib/cloud-store'
+import { useAuth } from 'app/lib/auth-context'
 import { AchievementForm } from 'app/components/tracker/achievement-form'
 import { AchievementList } from 'app/components/tracker/achievement-list'
 
 export default function TrackerPage() {
+  const { user, isConfigured } = useAuth()
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [profile, setProfile] = useState<TrackerProfile | null>(null)
   const [showProfile, setShowProfile] = useState(false)
   const [editingAchievement, setEditingAchievement] = useState<Achievement | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [migrationDone, setMigrationDone] = useState(false)
   const [profileForm, setProfileForm] = useState<TrackerProfile>({
     name: '',
     role: 'dev',
@@ -27,42 +43,79 @@ export default function TrackerPage() {
     company: '',
   })
 
-  const refresh = useCallback(() => {
-    setAchievements(getAchievements())
-  }, [])
+  const isCloud = isConfigured && user !== null
+
+  const refresh = useCallback(async () => {
+    if (isCloud && user) {
+      setSyncing(true)
+      const cloudData = await getCloudAchievements(user.uid)
+      setAchievements(cloudData)
+      const cloudProfile = await getCloudProfile(user.uid)
+      if (cloudProfile) {
+        setProfile(cloudProfile)
+        setProfileForm(cloudProfile)
+      }
+      setSyncing(false)
+    } else {
+      setAchievements(getAchievements())
+      const p = getProfile()
+      if (p) {
+        setProfile(p)
+        setProfileForm(p)
+      }
+    }
+  }, [isCloud, user])
+
+  // Migrate local data to cloud on first sign-in
+  useEffect(() => {
+    if (isCloud && user && !migrationDone) {
+      migrateLocalToCloud(user.uid).then((count) => {
+        if (count > 0) {
+          console.log(`Migrated ${count} achievements to cloud`)
+        }
+        setMigrationDone(true)
+        refresh()
+      })
+    }
+  }, [isCloud, user, migrationDone, refresh])
 
   useEffect(() => {
     refresh()
-    const p = getProfile()
-    if (p) {
-      setProfile(p)
-      setProfileForm(p)
-    }
   }, [refresh])
 
-  function handleSaveProfile(e: React.FormEvent) {
+  async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault()
-    saveProfile(profileForm)
+    if (isCloud && user) {
+      await saveCloudProfile(user.uid, profileForm)
+    } else {
+      saveProfile(profileForm)
+    }
     setProfile(profileForm)
     setShowProfile(false)
   }
 
   function handleEdit(achievement: Achievement) {
     setEditingAchievement(achievement)
-    // Scroll to form
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function handleFormDone() {
+  async function handleFormDone() {
     setEditingAchievement(null)
-    refresh()
+    await refresh()
+  }
+
+  async function handleDelete(id: string) {
+    if (isCloud && user) {
+      await deleteCloudAchievement(user.uid, id)
+    } else {
+      deleteLocalAchievement(id)
+    }
+    await refresh()
   }
 
   const totalCount = achievements.length
   const quarters = Array.from(new Set(achievements.map((a) => a.quarter)))
   const categories = Array.from(new Set(achievements.map((a) => a.category)))
-
-  // Stats
   const strongCount = achievements.filter((a) => calculateStrength(a).score >= 60).length
   const draftCount = achievements.filter((a) => calculateStrength(a).score < 40).length
 
@@ -76,6 +129,16 @@ export default function TrackerPage() {
           <p className="text-neutral-600 dark:text-neutral-400 text-sm">
             Track your achievements, generate review write-ups, and prep for interviews.
           </p>
+          {isCloud && (
+            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+              {syncing ? 'Syncing...' : 'Synced to cloud'}
+            </p>
+          )}
+          {!isConfigured && (
+            <p className="text-xs text-neutral-400 mt-1">
+              Using local storage. Set up Firebase to sync across devices.
+            </p>
+          )}
         </div>
         <button
           onClick={() => setShowProfile(!showProfile)}
@@ -201,6 +264,7 @@ export default function TrackerPage() {
           defaultRole={profile?.role}
           editingAchievement={editingAchievement}
           onCancelEdit={() => setEditingAchievement(null)}
+          userId={isCloud && user ? user.uid : undefined}
         />
       </div>
 
@@ -209,6 +273,7 @@ export default function TrackerPage() {
         achievements={achievements}
         onUpdate={refresh}
         onEdit={handleEdit}
+        onDelete={handleDelete}
       />
     </section>
   )

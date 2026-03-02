@@ -11,24 +11,41 @@ import {
   generateYearlyReview,
   exportToMarkdown,
 } from 'app/lib/tracker-store'
+import { getCloudAchievements, getCloudProfile } from 'app/lib/cloud-store'
+import { useAuth } from 'app/lib/auth-context'
 
 export function ReviewGenerator() {
+  const { user, isConfigured } = useAuth()
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
   const [reviewType, setReviewType] = useState<'quarterly' | 'yearly'>('quarterly')
   const [generatedReview, setGeneratedReview] = useState<string>('')
 
+  const isCloud = isConfigured && user !== null
+
   useEffect(() => {
-    setAchievements(getAchievements())
-  }, [])
+    async function load() {
+      if (isCloud && user) {
+        setAchievements(await getCloudAchievements(user.uid))
+      } else {
+        setAchievements(getAchievements())
+      }
+    }
+    load()
+  }, [isCloud, user])
 
   const quarters = Object.keys(groupByQuarter(achievements))
   const years = Object.keys(groupByYear(achievements))
   const periods = reviewType === 'quarterly' ? quarters : years
 
-  function handleGenerate() {
+  async function handleGenerate() {
     if (!selectedPeriod) return
-    const profile = getProfile()
+    let profile
+    if (isCloud && user) {
+      profile = await getCloudProfile(user.uid)
+    } else {
+      profile = getProfile()
+    }
 
     if (reviewType === 'quarterly') {
       const grouped = groupByQuarter(achievements)

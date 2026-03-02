@@ -11,19 +11,33 @@ import {
   generateInterviewQuestions,
   exportToMarkdown,
 } from 'app/lib/tracker-store'
+import { getCloudAchievements, getCloudProfile } from 'app/lib/cloud-store'
+import { useAuth } from 'app/lib/auth-context'
 
 export function InterviewPrep() {
+  const { user, isConfigured } = useAuth()
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [selectedId, setSelectedId] = useState<string>('')
   const [generatedAnswer, setGeneratedAnswer] = useState<string>('')
   const [showQuestions, setShowQuestions] = useState(false)
+  const [role, setRole] = useState<Role>('dev')
+
+  const isCloud = isConfigured && user !== null
 
   useEffect(() => {
-    setAchievements(getAchievements())
-  }, [])
-
-  const profile = getProfile()
-  const role: Role = profile?.role || 'dev'
+    async function load() {
+      if (isCloud && user) {
+        setAchievements(await getCloudAchievements(user.uid))
+        const profile = await getCloudProfile(user.uid)
+        if (profile?.role) setRole(profile.role)
+      } else {
+        setAchievements(getAchievements())
+        const profile = getProfile()
+        if (profile?.role) setRole(profile.role)
+      }
+    }
+    load()
+  }, [isCloud, user])
 
   const questions = generateInterviewQuestions(achievements, role)
 
