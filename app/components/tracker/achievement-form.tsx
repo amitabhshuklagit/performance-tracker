@@ -4,17 +4,19 @@ import { useState } from 'react'
 import {
   type Role,
   type Category,
+  type Achievement,
   ROLE_LABELS,
   CATEGORY_LABELS,
-  addAchievement,
 } from 'app/lib/tracker-store'
+import { saveCloudAchievement } from 'app/lib/cloud-store'
 
 interface AchievementFormProps {
   onAdd: () => void
   defaultRole?: Role
+  userId: string
 }
 
-export function AchievementForm({ onAdd, defaultRole = 'dev' }: AchievementFormProps) {
+export function AchievementForm({ onAdd, defaultRole = 'dev', userId }: AchievementFormProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [title, setTitle] = useState('')
@@ -32,7 +34,13 @@ export function AchievementForm({ onAdd, defaultRole = 'dev' }: AchievementFormP
 
     setSaving(true)
     try {
-      await addAchievement({
+      const d = new Date(date)
+      const q = Math.ceil((d.getMonth() + 1) / 3)
+      const quarter = `Q${q} ${d.getFullYear()}`
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+      const achievement: Achievement = {
+        id,
         title: title.trim(),
         description: description.trim(),
         date,
@@ -44,7 +52,10 @@ export function AchievementForm({ onAdd, defaultRole = 'dev' }: AchievementFormP
           .split(',')
           .map((t) => t.trim())
           .filter(Boolean),
-      })
+        quarter,
+      }
+
+      await saveCloudAchievement(userId, achievement)
 
       // Reset form
       setTitle('')

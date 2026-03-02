@@ -1,20 +1,21 @@
 'use client'
 
+import { useState } from 'react'
 import {
   type Achievement,
   CATEGORY_LABELS,
   ROLE_LABELS,
-  deleteAchievement,
   groupByQuarter,
 } from 'app/lib/tracker-store'
-import { useState } from 'react'
+import { deleteCloudAchievement } from 'app/lib/cloud-store'
 
 interface AchievementListProps {
   achievements: Achievement[]
   onUpdate: () => void
+  userId: string
 }
 
-export function AchievementList({ achievements, onUpdate }: AchievementListProps) {
+export function AchievementList({ achievements, onUpdate, userId }: AchievementListProps) {
   if (achievements.length === 0) {
     return (
       <div className="text-center py-12 text-neutral-500 dark:text-neutral-400">
@@ -40,7 +41,7 @@ export function AchievementList({ achievements, onUpdate }: AchievementListProps
           </h3>
           <div className="space-y-3">
             {items.map((item) => (
-              <AchievementCard key={item.id} item={item} onDeleted={onUpdate} />
+              <AchievementCard key={item.id} item={item} onDeleted={onUpdate} userId={userId} />
             ))}
           </div>
         </div>
@@ -52,9 +53,11 @@ export function AchievementList({ achievements, onUpdate }: AchievementListProps
 function AchievementCard({
   item,
   onDeleted,
+  userId,
 }: {
   item: Achievement
   onDeleted: () => void
+  userId: string
 }) {
   const [deleting, setDeleting] = useState(false)
 
@@ -62,7 +65,7 @@ function AchievementCard({
     if (!window.confirm('Delete this achievement?')) return
     setDeleting(true)
     try {
-      await deleteAchievement(item.id)
+      await deleteCloudAchievement(userId, item.id)
       onDeleted()
     } catch (error) {
       console.error('Error deleting:', error)

@@ -1,18 +1,21 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from 'app/lib/auth-context'
 import {
   type Achievement,
-  getAchievements,
-  getProfile,
   groupByQuarter,
   groupByYear,
   generateQuarterlyReview,
   generateYearlyReview,
   exportToMarkdown,
 } from 'app/lib/tracker-store'
+import { getCloudAchievements, getCloudProfile } from 'app/lib/cloud-store'
 
 export function ReviewGenerator() {
+  const { user } = useAuth()
+  const userId = user?.uid || ''
+
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
@@ -21,21 +24,22 @@ export function ReviewGenerator() {
 
   useEffect(() => {
     async function load() {
+      if (!userId) return
       setLoading(true)
-      const data = await getAchievements()
+      const data = await getCloudAchievements(userId)
       setAchievements(data)
       setLoading(false)
     }
     load()
-  }, [])
+  }, [userId])
 
   const quarters = Object.keys(groupByQuarter(achievements))
   const years = Object.keys(groupByYear(achievements))
   const periods = reviewType === 'quarterly' ? quarters : years
 
   async function handleGenerate() {
-    if (!selectedPeriod) return
-    const profile = await getProfile()
+    if (!selectedPeriod || !userId) return
+    const profile = await getCloudProfile(userId)
 
     if (reviewType === 'quarterly') {
       const grouped = groupByQuarter(achievements)

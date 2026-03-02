@@ -2,19 +2,38 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useAuth } from 'app/lib/auth-context'
+import { AuthGuard } from 'app/components/auth-guard'
 import {
   type Achievement,
   type Role,
-  getAchievements,
-  getProfile,
-  saveProfile,
   type TrackerProfile,
   ROLE_LABELS,
+  groupByQuarter,
 } from 'app/lib/tracker-store'
+import {
+  getCloudAchievements,
+  getCloudProfile,
+  saveCloudProfile,
+  saveCloudAchievement,
+  deleteCloudAchievement,
+  migrateLocalToCloud,
+} from 'app/lib/cloud-store'
 import { AchievementForm } from 'app/components/tracker/achievement-form'
 import { AchievementList } from 'app/components/tracker/achievement-list'
 
 export default function TrackerPage() {
+  return (
+    <AuthGuard>
+      <TrackerContent />
+    </AuthGuard>
+  )
+}
+
+function TrackerContent() {
+  const { user } = useAuth()
+  const userId = user!.uid
+
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<TrackerProfile | null>(null)
@@ -29,27 +48,29 @@ export default function TrackerPage() {
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    const data = await getAchievements()
+    const data = await getCloudAchievements(userId)
     setAchievements(data)
     setLoading(false)
-  }, [])
+  }, [userId])
 
   useEffect(() => {
     async function init() {
-      const [, p] = await Promise.all([refresh(), getProfile()])
+      // Migrate any local data to cloud on first load
+      await migrateLocalToCloud(userId)
+      const [, p] = await Promise.all([refresh(), getCloudProfile(userId)])
       if (p) {
         setProfile(p)
         setProfileForm(p)
       }
     }
     init()
-  }, [refresh])
+  }, [refresh, userId])
 
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault()
     setSavingProfile(true)
     try {
-      await saveProfile(profileForm)
+      await saveCloudProfile(userId, profileForm)
       setProfile(profileForm)
       setShowProfile(false)
     } catch (error) {
@@ -189,7 +210,7 @@ export default function TrackerPage() {
 
       {/* Add Achievement */}
       <div className="mb-6">
-        <AchievementForm onAdd={refresh} defaultRole={profile?.role} />
+        <AchievementForm onAdd={refresh} defaultRole={profile?.role} userId={userId} />
       </div>
 
       {/* Achievement List */}
@@ -198,7 +219,7 @@ export default function TrackerPage() {
           Loading achievements...
         </div>
       ) : (
-        <AchievementList achievements={achievements} onUpdate={refresh} />
+        <AchievementList achievements={achievements} onUpdate={refresh} userId={userId} />
       )}
     </section>
   )
