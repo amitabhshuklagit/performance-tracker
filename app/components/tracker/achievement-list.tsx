@@ -165,17 +165,26 @@ function AchievementCard({
   userId: string
 }) {
   const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [expanded, setExpanded] = useState(false)
 
   async function handleDelete() {
-    if (!window.confirm('Delete this achievement?')) return
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      // Auto-dismiss confirmation after 3 seconds
+      setTimeout(() => setConfirmDelete(false), 3000)
+      return
+    }
     setDeleting(true)
+    setConfirmDelete(false)
+    // Trigger optimistic UI update immediately before awaiting Firestore
+    onDeleted()
     try {
       await deleteCloudAchievement(userId, item.id)
-      onDeleted()
     } catch (error) {
       console.error('Error deleting:', error)
-      alert('Failed to delete. Please try again.')
+      // Refresh to restore the item since optimistic removal failed
+      onDeleted()
     } finally {
       setDeleting(false)
     }
@@ -259,10 +268,14 @@ function AchievementCard({
         <button
           onClick={(e) => { e.stopPropagation(); handleDelete() }}
           disabled={deleting}
-          className="text-neutral-400 hover:text-red-500 transition-colors text-sm shrink-0 disabled:opacity-50"
-          title="Delete"
+          className={`transition-colors text-sm shrink-0 disabled:opacity-50 ${
+            confirmDelete
+              ? 'text-red-500 font-medium px-2 py-0.5 rounded border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950'
+              : 'text-neutral-400 hover:text-red-500'
+          }`}
+          title={confirmDelete ? 'Click again to confirm delete' : 'Delete'}
         >
-          {deleting ? '...' : '\u00d7'}
+          {deleting ? '...' : confirmDelete ? 'Confirm?' : '\u00d7'}
         </button>
       </div>
     </div>
